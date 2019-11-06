@@ -20,7 +20,7 @@ def convert_phred(letter):
     return(x)
 
 def rev_comp(seq):
-    """Takes a sequence and returns the reverse the complement"""
+    '''Takes a sequence and returns the reverse the complement'''
     valid_bases = ['A', 'T', 'G', 'C']
     comp_dict = {'A': 'T', 'C': 'G', 'T': 'A', 'G': 'C'}
     bases=[]
@@ -49,6 +49,7 @@ def avg_index_qual_score(seq):
 #avg_index_qual_score(I1_l4) #31.125
 #avg_index_qual_score(I2_l4) #26.375
 
+
 file = open(args.FILEPATH_INDEXES, "r")
 
 
@@ -60,15 +61,17 @@ barcodes_counter = {}
 for line in file:
     inner_list.append(line.strip().split()[4])
 
-for barcode in inner_list[1:]:
+#This chunk of code will pull out all of the barcodes from the idexes.txt file
+for barcode in inner_list[1:]: #takes out header line
     #rev_barcode = rev_comp(barcode)
-    index_pair = barcode + "-" + barcode
-    barcodes_dic[index_pair] = [gz.open(index_pair + "_R1.fastq.gz", "at"), gz.open(index_pair + "_R2.fastq.gz", "at")]
-    barcodes_counter.setdefault(index_pair, 0)
-    #print(index_pair)
-#print(barcodes_dic)
-#print(barcodes_counter)
-barcodes_list = inner_list[1:]
+    index_pair = barcode + "-" + barcode #create all index pairs for DUAL MATCHED pairs
+    barcodes_dic[index_pair] = [gz.open(index_pair + "_R1.fastq.gz", "at"), gz.open(index_pair + "_R2.fastq.gz", "at")] #create a dictionary that will create a list of two files (R1/R2) for every dual matched index pair
+    # the formatting for the fitted dictionary should look like this: {'index-pair': [index-pair_R1.fastq.gz, index-pair_R2.fastq.gz]}
+    barcodes_counter.setdefault(index_pair, 0) #set the default of the values of the DUAL MATCHED COUNTER DICTIONARY to zero [NOTE: Not the dual matched FILE dictionary]; counts the number of times every index pair occured
+    #print(index_pair) # <-- sanity check
+#print(barcodes_dic) <-- sanity check
+#print(barcodes_counter) <-- sanity check
+barcodes_list = inner_list[1:] #populate the barcodes list
 
 for item in barcodes_list:
     rev = rev_comp(item)
@@ -79,20 +82,28 @@ for item in barcodes_list:
 #print(barcode_reverse_list)
 
 
+# ---------------- DEMULTIPLEXING ------------------
+
+#open your files dynamically, this will save run time later when submitting your job
 
 R1_file = gz.open(args.FILEPATH_R1, 'rt')
 R2_file = gz.open(args.FILEPATH_R2, 'rt')
 I1_file = gz.open(args.FILEPATH_I1, 'rt')
 I2_file = gz.open(args.FILEPATH_I2, 'rt')
+
+#Open the files you're going to be writing
 undetermined_R1 = gz.open("Undetermined_reads_R1.fastq.gz", "wt")
 undetermined_R2 = gz.open("Undetermined_reads_R2.fastq.gz", "wt")
 index_R1 = gz.open("Index_hopped_reads_R1.fastq.gz", "wt")
 index_R2 = gz.open("Index_hopped_reads_R2.fastq.gz", "wt")
 
+# initialize your counters to zero
 count = 0
 undetermine = 0
 index_hopped = 0
 index_paired = 0
+
+#OPEN EVERY SINGLE FILE DYNAMICALLY
 for file in R1_file, R2_file, I1_file, I2_file:
     while True:
         R1_l1 = R1_file.readline().strip() #this pulls out the header line
@@ -167,6 +178,8 @@ for file in R1_file, R2_file, I1_file, I2_file:
 
 #print(barcodes_counter, sum_barcodes)
 
+#NOTE: When closing your 48 files [one for each index pair] you have to use
+# a for loop to close them all at the same time
 for matched_pair in barcodes_dic:
     barcodes_dic[matched_pair][0].close()
     barcodes_dic[matched_pair][1].close()
